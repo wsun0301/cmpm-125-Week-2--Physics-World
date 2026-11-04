@@ -16,6 +16,7 @@ public class PauseMenu : MonoBehaviour
     private void Start()
     {
         Time.timeScale = 1f;
+        ArcadeMenuStyle.Overlay(pausePanel, ArcadeMenuStyle.Mint, new Vector2(690, 720));
         pausePanel.SetActive(false);
 
         gameManager = FindFirstObjectByType<GameManager>();

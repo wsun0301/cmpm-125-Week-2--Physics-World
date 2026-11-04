@@ -74,6 +74,7 @@ public class CoinSpawner : MonoBehaviour
                     1f,
                     Random.Range(-spawnRange, spawnRange)
                 );
+                if (manager != null && !manager.Arena.IsClear(spawnPosition, 1.1f)) continue;
                 if (manager != null && manager.Player != null &&
                     (spawnPosition - manager.Player.position).sqrMagnitude < 9f)
                 {

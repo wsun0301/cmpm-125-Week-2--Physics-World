@@ -4,8 +4,6 @@ using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("Scenes")]
-    [SerializeField] private string gameSceneName = "GameScene";
 
     [Header("Menus")]
     [SerializeField] private GameObject optionsPanel;
@@ -18,6 +16,7 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
+        ArcadeMenuStyle.TitleScreen(FindAnyObjectByType<Canvas>(), optionsPanel, creditsPanel, volumeSlider, fullscreenToggle);
         optionsPanel.SetActive(false);
         creditsPanel.SetActive(false);
 
@@ -36,7 +35,7 @@ public class MainMenuManager : MonoBehaviour
     public void StartGame()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(gameSceneName);
+        SceneManager.LoadScene("LevelSelect");
     }
 
     public void OpenOptions()

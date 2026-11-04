@@ -1,0 +1,3 @@
+PASS level 1: layout, enemies, coins, star boundaries, win persistence, restart
+PASS level 2: layout, enemies, coins, star boundaries, win persistence, restart
+PASS level 3: layout, enemies, coins, star boundaries, win persistence, restart
