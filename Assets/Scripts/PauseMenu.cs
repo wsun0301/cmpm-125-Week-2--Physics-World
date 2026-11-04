@@ -25,7 +25,7 @@ public class PauseMenu : MonoBehaviour
     {
         if (Keyboard.current == null) return;
 
-        if (gameManager != null && gameManager.HasWon)
+        if (gameManager != null && gameManager.GameEnded)
             return;
 
         if (Keyboard.current.escapeKey.wasPressedThisFrame)

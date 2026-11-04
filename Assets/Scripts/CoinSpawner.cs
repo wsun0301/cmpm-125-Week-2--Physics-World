@@ -53,7 +53,7 @@ public class CoinSpawner : MonoBehaviour
         {
             yield return new WaitForSeconds(spawnInterval);
 
-            if (manager != null && manager.HasWon)
+            if (manager != null && manager.GameEnded)
             {
                 yield break;
             }
@@ -74,6 +74,12 @@ public class CoinSpawner : MonoBehaviour
                     1f,
                     Random.Range(-spawnRange, spawnRange)
                 );
+                if (manager != null && manager.Player != null &&
+                    (spawnPosition - manager.Player.position).sqrMagnitude < 9f)
+                {
+                    continue;
+                }
+
                 coin.transform.position = spawnPosition;
 
                 Coin coinScript = coin.GetComponent<Coin>();
