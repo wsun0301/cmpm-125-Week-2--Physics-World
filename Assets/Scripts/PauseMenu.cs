@@ -16,6 +16,7 @@ public class PauseMenu : MonoBehaviour
     private void Start()
     {
         Time.timeScale = 1f;
+        ArcadeMenuStyle.Overlay(pausePanel, ArcadeMenuStyle.Mint, new Vector2(690, 720));
         pausePanel.SetActive(false);
 
         gameManager = FindFirstObjectByType<GameManager>();
@@ -25,7 +26,7 @@ public class PauseMenu : MonoBehaviour
     {
         if (Keyboard.current == null) return;
 
-        if (gameManager != null && gameManager.HasWon)
+        if (gameManager != null && gameManager.GameEnded)
             return;
 
         if (Keyboard.current.escapeKey.wasPressedThisFrame)

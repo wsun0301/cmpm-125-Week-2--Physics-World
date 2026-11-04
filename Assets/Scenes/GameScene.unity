@@ -369,8 +369,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 180, y: -60}
-  m_SizeDelta: {x: 350, y: 70}
+  m_AnchoredPosition: {x: 180, y: -74}
+  m_SizeDelta: {x: 350, y: 108}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &305947345
 MonoBehaviour:
@@ -2464,6 +2464,8 @@ MonoBehaviour:
   scoreText: {fileID: 305947345}
   winPanel: {fileID: 2087275857}
   mainMenuSceneName: MainMenu
+  resultTitle: {fileID: 209607101}
+  player: {fileID: 783577881}
 --- !u!1 &1722710063
 GameObject:
   m_ObjectHideFlags: 0

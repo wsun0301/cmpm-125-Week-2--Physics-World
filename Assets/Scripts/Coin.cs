@@ -55,7 +55,7 @@ public class Coin : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            if (manager != null && !manager.HasWon)
+            if (manager != null && !manager.GameEnded)
             {
                 manager.AddScore(pointValue);
                 gameObject.SetActive(false);

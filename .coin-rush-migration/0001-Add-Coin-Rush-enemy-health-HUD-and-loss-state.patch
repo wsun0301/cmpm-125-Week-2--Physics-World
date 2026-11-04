@@ -1,0 +1,287 @@
+From ad2d522cc0e4ba5e8f309fef7702209a554993c5 Mon Sep 17 00:00:00 2001
+From: Weichen Sun <wsun0301@gmail.com>
+Date: Wed, 4 Nov 2026 10:28:45 -0800
+Subject: [PATCH] Add Coin Rush enemy, health HUD, and loss state
+
+---
+ Assets/Scenes/GameScene.unity     |  6 ++-
+ Assets/Scripts/Coin.cs            |  2 +-
+ Assets/Scripts/CoinSpawner.cs     |  8 ++-
+ Assets/Scripts/EnemyChase.cs      | 36 +++++++++++++
+ Assets/Scripts/EnemyChase.cs.meta |  2 +
+ Assets/Scripts/GameManager.cs     | 87 ++++++++++++++++++++++---------
+ Assets/Scripts/PauseMenu.cs       |  2 +-
+ 7 files changed, 113 insertions(+), 30 deletions(-)
+ create mode 100644 Assets/Scripts/EnemyChase.cs
+ create mode 100644 Assets/Scripts/EnemyChase.cs.meta
+
+diff --git a/Assets/Scenes/GameScene.unity b/Assets/Scenes/GameScene.unity
+index 65163de..8d1c781 100644
+--- a/Assets/Scenes/GameScene.unity
++++ b/Assets/Scenes/GameScene.unity
+@@ -369,8 +369,8 @@ RectTransform:
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+   m_AnchorMin: {x: 0, y: 1}
+   m_AnchorMax: {x: 0, y: 1}
+-  m_AnchoredPosition: {x: 180, y: -60}
+-  m_SizeDelta: {x: 350, y: 70}
++  m_AnchoredPosition: {x: 180, y: -74}
++  m_SizeDelta: {x: 350, y: 108}
+   m_Pivot: {x: 0.5, y: 0.5}
+ --- !u!114 &305947345
+ MonoBehaviour:
+@@ -2464,6 +2464,8 @@ MonoBehaviour:
+   scoreText: {fileID: 305947345}
+   winPanel: {fileID: 2087275857}
+   mainMenuSceneName: MainMenu
++  resultTitle: {fileID: 209607101}
++  player: {fileID: 783577881}
+ --- !u!1 &1722710063
+ GameObject:
+   m_ObjectHideFlags: 0
+diff --git a/Assets/Scripts/Coin.cs b/Assets/Scripts/Coin.cs
+index 7fbb646..8d03ff0 100644
+--- a/Assets/Scripts/Coin.cs
++++ b/Assets/Scripts/Coin.cs
+@@ -55,7 +55,7 @@ private void OnTriggerEnter(Collider other)
+     {
+         if (other.CompareTag("Player"))
+         {
+-            if (manager != null && !manager.HasWon)
++            if (manager != null && !manager.GameEnded)
+             {
+                 manager.AddScore(pointValue);
+                 gameObject.SetActive(false);
+diff --git a/Assets/Scripts/CoinSpawner.cs b/Assets/Scripts/CoinSpawner.cs
+index 9b2700f..e1717b9 100644
+--- a/Assets/Scripts/CoinSpawner.cs
++++ b/Assets/Scripts/CoinSpawner.cs
+@@ -53,7 +53,7 @@ IEnumerator SpawnRoutine()
+         {
+             yield return new WaitForSeconds(spawnInterval);
+ 
+-            if (manager != null && manager.HasWon)
++            if (manager != null && manager.GameEnded)
+             {
+                 yield break;
+             }
+@@ -74,6 +74,12 @@ void SpawnCoin()
+                     1f,
+                     Random.Range(-spawnRange, spawnRange)
+                 );
++                if (manager != null && manager.Player != null &&
++                    (spawnPosition - manager.Player.position).sqrMagnitude < 9f)
++                {
++                    continue;
++                }
++
+                 coin.transform.position = spawnPosition;
+ 
+                 Coin coinScript = coin.GetComponent<Coin>();
+diff --git a/Assets/Scripts/EnemyChase.cs b/Assets/Scripts/EnemyChase.cs
+new file mode 100644
+index 0000000..2dd263b
+--- /dev/null
++++ b/Assets/Scripts/EnemyChase.cs
+@@ -0,0 +1,36 @@
++using UnityEngine;
++
++public class EnemyChase : MonoBehaviour
++{
++    private const float DetectionRadius = 14f;
++    private const float ChaseSpeed = 4.5f;
++
++    private GameManager manager;
++    private Rigidbody body;
++    private Rigidbody player;
++
++    public void Initialize(GameManager gameManager, Rigidbody enemyBody, Rigidbody target)
++    {
++        manager = gameManager;
++        body = enemyBody;
++        player = target;
++    }
++
++    void FixedUpdate()
++    {
++        Vector3 offset = player.position - body.position;
++        if (offset.sqrMagnitude > DetectionRadius * DetectionRadius) return;
++
++        offset.y = 0f;
++        body.MovePosition(body.position + Vector3.ClampMagnitude(offset, ChaseSpeed * Time.fixedDeltaTime));
++    }
++
++    void OnTriggerStay(Collider other)
++    {
++        if (other.attachedRigidbody != player) return;
++
++        Vector3 direction = player.position - body.position;
++        direction.y = 0f;
++        manager.TakeDamage(direction.normalized);
++    }
++}
+diff --git a/Assets/Scripts/EnemyChase.cs.meta b/Assets/Scripts/EnemyChase.cs.meta
+new file mode 100644
+index 0000000..d034e47
+--- /dev/null
++++ b/Assets/Scripts/EnemyChase.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0812b6e8d152432aa1d0aa64fab58d79
+diff --git a/Assets/Scripts/GameManager.cs b/Assets/Scripts/GameManager.cs
+index 022069a..4a66a65 100644
+--- a/Assets/Scripts/GameManager.cs
++++ b/Assets/Scripts/GameManager.cs
+@@ -1,74 +1,111 @@
++using System.Collections;
++using TMPro;
+ using UnityEngine;
+ using UnityEngine.SceneManagement;
+-using TMPro;
+ 
+ public class GameManager : MonoBehaviour
+ {
+-    [Header("Score Settings")]
+     public int score = 0;
+     public int targetScore = 50;
+-
+-    [Header("References")]
+     public CoinSpawner coinSpawner;
+     public TMP_Text scoreText;
+-
+-    [Header("Win Menu")]
+     public GameObject winPanel;
+     public string mainMenuSceneName = "MainMenu";
+ 
++    [SerializeField] private TMP_Text resultTitle;
++    [SerializeField] private Rigidbody player;
++    [SerializeField, Min(1)] private int startingHealth = 3;
++
++    private int health;
++    private float nextDamageTime;
++
+     public bool HasWon => score >= targetScore;
++    public bool GameEnded { get; private set; }
++    public Rigidbody Player => player;
+ 
+     void Start()
+     {
+         Time.timeScale = 1f;
++        health = startingHealth;
+         winPanel.SetActive(false);
++        scoreText.raycastTarget = false;
+         UpdateHUD();
++        StartCoroutine(SpawnChaser());
++    }
++
++    IEnumerator SpawnChaser()
++    {
++        yield return new WaitForSeconds(4f);
++        if (GameEnded || player == null) yield break;
++
++        Vector3 position = player.position;
++        GameObject enemy = GameObject.CreatePrimitive(PrimitiveType.Sphere);
++        enemy.name = "Chaser";
++        enemy.transform.position = new Vector3(
++            position.x >= 0f ? -7f : 7f,
++            0.65f,
++            position.z >= 0f ? -7f : 7f);
++        enemy.transform.localScale = Vector3.one * 1.3f;
++        enemy.GetComponent<Collider>().isTrigger = true;
++
++        Rigidbody body = enemy.AddComponent<Rigidbody>();
++        body.isKinematic = true;
++        body.interpolation = RigidbodyInterpolation.Interpolate;
++
++        Renderer renderer = enemy.GetComponent<Renderer>();
++        renderer.sharedMaterial = player.GetComponent<Renderer>().sharedMaterial;
++        renderer.material.color = new Color(1f, 0.12f, 0.16f);
++        enemy.AddComponent<EnemyChase>().Initialize(this, body, player);
+     }
+ 
+     public void AddScore(int amount)
+     {
+-        if (HasWon) return;
++        if (GameEnded || HasWon) return;
+ 
+         score += amount;
+-        Debug.Log("Score: " + score);
+-
+         UpdateHUD();
+ 
+         if (HasWon)
+         {
+-            WinGame();
++            EndGame(true);
+         }
+     }
+ 
+-    void UpdateHUD()
++    public void TakeDamage(Vector3 direction)
+     {
+-        if (scoreText != null)
++        if (GameEnded || Time.time < nextDamageTime) return;
++
++        nextDamageTime = Time.time + 1.25f;
++        health--;
++        UpdateHUD();
++
++        if (health == 0)
+         {
+-            scoreText.text =
+-                "SCORE: " + score + " / " + targetScore;
++            EndGame(false);
++            return;
+         }
++
++        player.AddForce(direction * 6f + Vector3.up * 3f, ForceMode.VelocityChange);
+     }
+ 
+-    void WinGame()
++    void UpdateHUD()
+     {
+-        Debug.Log("You Win!");
+-
+-        if (coinSpawner != null)
+-        {
+-            coinSpawner.StopSpawning();
+-        }
++        scoreText.text = $"SCORE: {score} / {targetScore}\nHEALTH: {health} / {startingHealth}";
++    }
+ 
++    void EndGame(bool won)
++    {
++        GameEnded = true;
++        if (coinSpawner != null) coinSpawner.StopSpawning();
++        resultTitle.text = won ? "YOU WIN!!!" : "YOU LOSE";
+         winPanel.SetActive(true);
+-
+         Time.timeScale = 0f;
+     }
+ 
+     public void RestartGame()
+     {
+         Time.timeScale = 1f;
+-        SceneManager.LoadScene(
+-            SceneManager.GetActiveScene().name
+-        );
++        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+     }
+ 
+     public void ReturnToMainMenu()
+diff --git a/Assets/Scripts/PauseMenu.cs b/Assets/Scripts/PauseMenu.cs
+index a5069d4..8c174e6 100644
+--- a/Assets/Scripts/PauseMenu.cs
++++ b/Assets/Scripts/PauseMenu.cs
+@@ -25,7 +25,7 @@ private void Update()
+     {
+         if (Keyboard.current == null) return;
+ 
+-        if (gameManager != null && gameManager.HasWon)
++        if (gameManager != null && gameManager.GameEnded)
+             return;
+ 
+         if (Keyboard.current.escapeKey.wasPressedThisFrame)
+-- 
+2.53.0.windows.3
+
